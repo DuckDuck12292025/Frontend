@@ -1,3 +1,14 @@
+/**
+ * 페이지: 알림
+ * 경로: /notifications
+ * 설명: 좋아요, 댓글, 팔로우, 리포스트, 멘션 등 알림을 필터별로 확인하고
+ *       개별/전체 읽음 처리할 수 있는 알림 목록 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockNotifications 사용 중
+ */
 'use client';
 
 import React, { useState, useCallback, useMemo } from 'react';

@@ -1,3 +1,14 @@
+/**
+ * 페이지: 로그인 내역
+ * 경로: /settings/login-history
+ * 설명: 최근 로그인 기록(기기, 위치, IP, 성공/실패 여부)을 표시하고,
+ *       전체 로그아웃 기능을 제공하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 데이터로 처리)
+ *
+ * Mock 상태: mockLoginHistory 사용 중
+ */
 'use client';
 import React from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

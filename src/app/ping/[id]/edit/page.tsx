@@ -1,3 +1,16 @@
+/**
+ * 페이지: 게시글 수정
+ * 경로: /ping/[id]/edit
+ * 설명: 기존 게시글의 내용과 카테고리를 수정하는 에디터 화면.
+ *       글자 수 제한(500자)을 적용하고, 수정 완료 시 상세 페이지로 이동한다.
+ *
+ * 사용하는 API:
+ *   - GET /posts/:id — 수정할 게시글 조회
+ *   - PUT /posts/:id — 게시글 수정
+ *   - GET /categories — 카테고리 목록 조회
+ *
+ * Mock 상태: 실제 API 연동 가능
+ */
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';

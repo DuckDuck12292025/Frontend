@@ -1,3 +1,13 @@
+/**
+ * 페이지: 카테고리 관리 (관리자)
+ * 경로: /admin/categories
+ * 설명: 카테고리 생성/편집/삭제, 활성/비활성 상태 토글을 수행하는 관리자 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockCategories 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

@@ -1,3 +1,17 @@
+/**
+ * 페이지: 홈 피드
+ * 경로: /
+ * 설명: 전체 게시글 피드를 무한 스크롤로 표시하는 메인 화면.
+ *       차단/뮤트 사용자의 게시글을 필터링하고, 좋아요/북마크/삭제 기능을 제공한다.
+ *
+ * 사용하는 API:
+ *   - GET /feed/home — 홈 피드 조회 (커서 기반 페이지네이션)
+ *   - POST /posts/:id/like — 게시글 좋아요 토글
+ *   - POST /posts/:id/bookmark — 게시글 북마크 토글
+ *   - DELETE /posts/:id — 게시글 삭제
+ *
+ * Mock 상태: mockPosts, mockNotifications 사용 중 (API fallback)
+ */
 'use client';
 
 import React, { useMemo } from 'react';

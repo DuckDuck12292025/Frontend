@@ -1,3 +1,14 @@
+/**
+ * 페이지: 회원가입
+ * 경로: /signup
+ * 설명: 이메일, 닉네임, 비밀번호를 입력받아 회원가입을 처리하는 화면.
+ *       이용약관 동의 체크 후 가입이 가능하다.
+ *
+ * 사용하는 API:
+ *   - POST /auth/signup — 회원가입
+ *
+ * Mock 상태: 실제 API 연동 가능
+ */
 'use client';
 
 import React, { useState } from 'react';

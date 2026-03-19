@@ -1,3 +1,11 @@
+/**
+ * 컴포넌트: MainLayout
+ * 설명: 전체 페이지의 공통 레이아웃. Header, Sidebar(데스크톱), RightSidebar(xl 이상),
+ *       BottomNav(모바일)를 조합하여 3컬럼 레이아웃을 구성한다.
+ *       showHeader, showNav, showRightSidebar props로 각 영역 표시 여부를 제어한다.
+ * 사용하는 API: 없음
+ * Mock 상태: 없음
+ */
 'use client';
 
 import React from 'react';

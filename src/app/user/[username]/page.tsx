@@ -1,3 +1,16 @@
+/**
+ * 페이지: 사용자 프로필
+ * 경로: /user/[username]
+ * 설명: 사용자의 프로필 정보, 게시글/프리미엄/답글/미디어/좋아요 탭별 피드,
+ *       팔로우/구독/익명질문 기능을 제공하는 프로필 화면.
+ *
+ * 사용하는 API:
+ *   - GET /users/nickname/:nickname — 사용자 프로필 조회
+ *   - GET /users/:id/posts — 사용자 게시글 조회
+ *   - POST /users/:id/follow — 팔로우 토글
+ *
+ * Mock 상태: mockPosts, mockQuestionTemplates 사용 중 (피드 fallback, 익명 질문 템플릿)
+ */
 'use client';
 
 import React, { useState, useMemo } from 'react';

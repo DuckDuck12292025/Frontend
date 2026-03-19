@@ -1,3 +1,13 @@
+/**
+ * 페이지: 차단 사용자
+ * 경로: /settings/blocked
+ * 설명: 차단한 사용자 목록을 표시하고, 차단 해제 기능을 제공하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockUsers 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

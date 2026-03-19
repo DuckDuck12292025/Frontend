@@ -1,3 +1,13 @@
+/**
+ * 페이지: 계정 관리
+ * 경로: /settings/account
+ * 설명: 비밀번호 변경 및 계정 삭제 기능을 제공하는 계정 관리 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: 비밀번호 변경은 로컬 검증만 수행
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

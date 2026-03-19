@@ -1,3 +1,12 @@
+/**
+ * 페이지: 고객지원
+ * 경로: /support
+ * 설명: 자주 묻는 질문(FAQ)을 아코디언으로 표시하고,
+ *       문의하기(버그 신고, 기능 제안, 콘텐츠 신고 등) 페이지로의 링크를 제공하는 화면.
+ *
+ * 사용하는 API: 없음
+ * Mock 상태: mockSupportFAQ 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';

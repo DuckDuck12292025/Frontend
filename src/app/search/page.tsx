@@ -1,3 +1,14 @@
+/**
+ * 페이지: 검색
+ * 경로: /search
+ * 설명: 게시글, 사용자, 카테고리를 키워드로 검색하는 화면.
+ *       추천 검색어를 제공하고, 탭별로 검색 결과를 표시한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 필터링으로 처리)
+ *
+ * Mock 상태: mockPosts, mockUsers, mockCategories 사용 중
+ */
 'use client';
 
 import React, { useState } from 'react';

@@ -1,3 +1,10 @@
+/**
+ * 컴포넌트: RightSidebar
+ * 설명: 데스크톱(xl 이상)에서 표시되는 우측 사이드바.
+ *       검색창, 인기 카테고리 Top 5, 추천 유저 3명, 하단 법적 링크를 제공한다.
+ * 사용하는 API: 없음
+ * Mock 상태: mockCategories, mockUsers 사용 중
+ */
 'use client';
 
 import React, { useState } from 'react';

@@ -1,3 +1,14 @@
+/**
+ * 페이지: 게시판 목록
+ * 경로: /categories
+ * 설명: 전체 카테고리(게시판) 목록을 검색 및 구독할 수 있는 화면.
+ *       카테고리별 구독자 수, 게시글 수, 공지 개수를 표시한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockCategories, mockPosts 사용 중
+ */
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';

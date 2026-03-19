@@ -1,3 +1,14 @@
+/**
+ * 페이지: 결제 수단
+ * 경로: /settings/payment
+ * 설명: 등록된 결제 수단(카드) 관리 및 결제 내역 조회 화면.
+ *       기본 결제 수단 설정, 삭제, 결제 수단 추가 기능을 제공한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockPayments 사용 중 (결제 내역), 결제 수단은 로컬 정의
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

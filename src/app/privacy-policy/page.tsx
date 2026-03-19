@@ -1,3 +1,12 @@
+/**
+ * 페이지: 개인정보처리방침
+ * 경로: /privacy-policy
+ * 설명: 수집 정보, 정보 이용/공유/보관, 사용자 권리 등
+ *       개인정보처리방침 전문을 표시하는 화면.
+ *
+ * 사용하는 API: 없음
+ * Mock 상태: 없음 (정적 콘텐츠)
+ */
 'use client';
 import React from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

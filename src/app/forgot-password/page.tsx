@@ -1,3 +1,14 @@
+/**
+ * 페이지: 비밀번호 찾기
+ * 경로: /forgot-password
+ * 설명: 이메일 입력 → 인증 코드 확인 → 새 비밀번호 설정의 3단계로
+ *       비밀번호를 재설정하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 setTimeout으로 mock 처리)
+ *
+ * Mock 상태: 모든 단계가 mock 처리 (실제 이메일 발송 없음)
+ */
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';

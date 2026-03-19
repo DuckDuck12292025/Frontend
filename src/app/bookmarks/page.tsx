@@ -1,3 +1,14 @@
+/**
+ * 페이지: 북마크
+ * 경로: /bookmarks
+ * 설명: 북마크한 게시글을 폴더 트리 구조로 관리하는 화면.
+ *       폴더 생성/삭제/이름변경, 하위 폴더 추가, 항목 선택 후 이동 기능을 제공한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockPosts 사용 중 (isBookmarked 필터)
+ */
 'use client';
 
 import React, { useState, useCallback, useMemo } from 'react';

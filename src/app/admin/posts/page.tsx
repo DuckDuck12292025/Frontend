@@ -1,3 +1,14 @@
+/**
+ * 페이지: 게시글 관리 (관리자)
+ * 경로: /admin/posts
+ * 설명: 전체 게시글 목록을 조회하고, 게시글 삭제를 수행하는 관리자 화면.
+ *       작성자, 공개범위, 좋아요/댓글/조회 수를 표시한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockPosts 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';

@@ -1,3 +1,14 @@
+/**
+ * 페이지: 관리자 대시보드
+ * 경로: /admin
+ * 설명: 전체 사용자/게시글 수, 미처리 신고, 오늘 가입 수 등 통계와
+ *       관리자 메뉴(사용자/게시글/신고/카테고리/요청/지원 관리) 바로가기를 제공하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 데이터로 처리)
+ *
+ * Mock 상태: mockAdminStats 사용 중
+ */
 'use client';
 import React from 'react';
 import Link from 'next/link';

@@ -1,3 +1,14 @@
+/**
+ * 페이지: 구독 관리
+ * 경로: /settings/subscriptions
+ * 설명: 내가 구독 중인 크리에이터 목록과 나를 구독하는 구독자 목록을 관리하는 화면.
+ *       구독 취소 기능을 제공한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockUsers 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
