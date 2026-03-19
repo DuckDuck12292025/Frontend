@@ -1,3 +1,14 @@
+/**
+ * 페이지: 프리미엄 구독
+ * 경로: /premium
+ * 설명: DuckDuck 프리미엄 구독 플랜(월간/연간)을 선택하고 가입할 수 있는 화면.
+ *       무료 vs 프리미엄 기능 비교 테이블을 제공한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: 플랜 데이터 로컬 정의, 구독 상태 로컬 state 관리
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

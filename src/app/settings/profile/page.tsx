@@ -1,3 +1,13 @@
+/**
+ * 페이지: 프로필 편집
+ * 경로: /settings/profile
+ * 설명: 닉네임, 핸들, 소개글, 프로필/배경 이미지를 수정하는 화면.
+ *
+ * 사용하는 API:
+ *   - PUT /users/profile — 프로필 업데이트
+ *
+ * Mock 상태: mockUsers[0] fallback 사용 중 (비로그인 시)
+ */
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';

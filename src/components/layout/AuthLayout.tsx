@@ -1,3 +1,10 @@
+/**
+ * 컴포넌트: AuthLayout
+ * 설명: 로그인, 회원가입, 비밀번호 찾기 등 인증 관련 페이지의 공통 레이아웃.
+ *       중앙 정렬된 카드 형태로 DuckDuck 로고, 제목, 뒤로가기 버튼을 제공한다.
+ * 사용하는 API: 없음
+ * Mock 상태: 없음
+ */
 'use client';
 import React from 'react';
 import Link from 'next/link';

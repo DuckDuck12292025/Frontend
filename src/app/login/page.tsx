@@ -1,3 +1,14 @@
+/**
+ * 페이지: 로그인
+ * 경로: /login
+ * 설명: 이메일/비밀번호 로그인 및 OAuth(카카오, 네이버, 구글, Apple) 로그인 화면.
+ *       로그인 성공 시 returnUrl로 리다이렉트한다.
+ *
+ * 사용하는 API:
+ *   - POST /auth/login — 이메일/비밀번호 로그인
+ *
+ * Mock 상태: OAuth 로그인은 placeholder (alert 처리), 테스트 계정 정보 표시
+ */
 'use client';
 
 import React, { Suspense, useState } from 'react';

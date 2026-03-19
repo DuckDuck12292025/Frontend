@@ -1,3 +1,15 @@
+/**
+ * 페이지: 새 글 작성
+ * 경로: /compose
+ * 설명: 새 게시글 작성, 인용 리포스트, Q&A 답변 작성을 처리하는 에디터 화면.
+ *       카테고리 선택, 프리미엄탭 전환, 이미지/동영상 첨부, 질문받기 토글 등을 지원한다.
+ *
+ * 사용하는 API:
+ *   - POST /posts — 게시글 생성
+ *   - GET /categories — 카테고리 목록 조회
+ *
+ * Mock 상태: mockPosts, mockAnonQuestions 사용 중 (인용/Q&A 원본 조회)
+ */
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, Suspense } from 'react';

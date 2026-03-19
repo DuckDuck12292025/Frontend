@@ -1,3 +1,14 @@
+/**
+ * 페이지: 팔로잉 목록
+ * 경로: /user/[username]/following
+ * 설명: 특정 사용자가 팔로우 중인 사용자 목록을 표시하고,
+ *       각 사용자에 대해 팔로우/언팔로우 토글 기능을 제공하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockUsers 사용 중
+ */
 'use client';
 
 import React, { useState, useEffect } from 'react';

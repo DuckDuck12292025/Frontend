@@ -1,3 +1,12 @@
+/**
+ * 페이지: 이용약관
+ * 경로: /terms
+ * 설명: DuckDuck 서비스 이용약관 전문을 5개 장(서비스 이용, 이용자 의무,
+ *       서비스 제공, 지식재산권, 책임 제한)으로 나눠 표시하는 화면.
+ *
+ * 사용하는 API: 없음
+ * Mock 상태: 없음 (정적 콘텐츠)
+ */
 'use client';
 import React from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

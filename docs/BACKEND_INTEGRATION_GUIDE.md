@@ -1,936 +1,655 @@
-# DuckDuck 백엔드 연결 가이드
+# 🦆 DuckDuck 백엔드 ↔ 프론트엔드 통합 가이드
 
-## 목차
-
-1. [현재 아키텍처 요약](#1-현재-아키텍처-요약)
-2. [연결 전 체크리스트](#2-연결-전-체크리스트)
-3. [Phase 1: 환경 설정](#3-phase-1-환경-설정)
-4. [Phase 2: 인증 연결](#4-phase-2-인증-연결)
-5. [Phase 3: 피드 & 게시글 연결](#5-phase-3-피드--게시글-연결)
-6. [Phase 4: 댓글 연결](#6-phase-4-댓글-연결)
-7. [Phase 5: 유저 & 프로필 연결](#7-phase-5-유저--프로필-연결)
-8. [Phase 6: 카테고리 & 검색 연결](#8-phase-6-카테고리--검색-연결)
-9. [Phase 7: 부가 기능 연결](#9-phase-7-부가-기능-연결)
-10. [API 엔드포인트 전체 목록](#10-api-엔드포인트-전체-목록)
-11. [백엔드 응답 형식 규격](#11-백엔드-응답-형식-규격)
-12. [트러블슈팅](#12-트러블슈팅)
+> **목적:** `DuckDuck12292025/Backend`(Spring Boot)를 `DuckDuck12292025/Frontend`(Next.js)의 API 스펙에 맞게 수정하는 방법을 안내합니다.
+>
+> **현재 상태:** 프론트엔드는 API 클라이언트, 서비스 함수, React Query 훅이 모두 구현되어 있습니다. 백엔드를 프론트엔드 스펙에 맞추면 바로 연결됩니다.
 
 ---
 
-## 1. 현재 아키텍처 요약
+## 📑 목차
 
-### 기술 스택
-| 항목 | 기술 |
-|------|------|
-| 프레임워크 | Next.js 15 (App Router) |
-| 상태 관리 | Zustand 5 (인증), TanStack React Query 5 (서버 상태) |
-| HTTP 클라이언트 | Axios (인터셉터, 토큰 자동 갱신 내장) |
-| 스타일링 | Tailwind CSS 4 |
-| 언어 | TypeScript (strict) |
-
-### 핵심 파일 구조
-
-```
-src/
-├── lib/api/
-│   ├── client.ts        ← Axios 인스턴스 + 인터셉터 (토큰 갱신)
-│   ├── endpoints.ts     ← 전체 API 경로 상수
-│   └── services.ts      ← 타입이 정의된 API 호출 함수
-├── hooks/
-│   └── queries.ts       ← ⚠️ 현재 mock, 실제 API로 교체 대상
-├── stores/
-│   └── auth.ts          ← Zustand 인증 스토어 (변경 불필요)
-├── mocks/
-│   └── data.ts          ← Mock 데이터 (연결 후 삭제 가능)
-├── components/providers/
-│   ├── AuthGuard.tsx     ← ⚠️ DEMO_MODE = false로 변경 필요
-│   ├── AuthHydration.tsx ← localStorage → Zustand 복원 (변경 불필요)
-│   └── Providers.tsx     ← 프로바이더 트리 (변경 불필요)
-└── types/
-    └── index.ts          ← 전체 타입 정의 (변경 불필요)
-```
-
-### 현재 데이터 흐름 (Mock)
-
-```
-컴포넌트 → useXxx() 훅 → mockData 배열 직접 조작 → queryClient 캐시 갱신
-```
-
-### 목표 데이터 흐름 (백엔드 연결 후)
-
-```
-컴포넌트 → useXxx() 훅 → services.ts API 호출 → Axios → 백엔드 → 응답 → 캐시 갱신
-```
+| # | 섹션 | 설명 |
+|---|------|------|
+| 1 | [수정이 필요한 이유](#1-수정이-필요한-이유) | 현재 불일치 현황 요약 |
+| 2 | [공통 응답 래퍼 도입](#2-공통-응답-래퍼-도입) | `ApiResponse<T>` 통일 |
+| 3 | [에러 응답 형식 통일](#3-에러-응답-형식-통일) | `GlobalExceptionHandler` 수정 |
+| 4 | [인증 방식 통일](#4-인증-방식-통일) | `X-User-Id` → `@CurrentUser` 전환 |
+| 5 | [엔드포인트 경로 매핑](#5-엔드포인트-경로-매핑) | 프론트가 호출하는 경로와 백엔드 경로 대조표 |
+| 6 | [응답 DTO 수정](#6-응답-dto-수정) | 도메인별 DTO 필드 맞추기 |
+| 7 | [페이지네이션 통일](#7-페이지네이션-통일) | 커서 기반 / 오프셋 기반 표준화 |
+| 8 | [CORS 수정](#8-cors-수정) | `localhost:8080` → `localhost:3000` |
+| 9 | [미구현 엔드포인트 목록](#9-미구현-엔드포인트-목록) | 구현이 필요한 API 전체 목록 |
+| 10 | [작업 우선순위](#10-작업-우선순위) | 어떤 순서로 맞추면 좋은지 |
 
 ---
 
-## 2. 연결 전 체크리스트
+## 1. 수정이 필요한 이유
 
-### 백엔드가 준비해야 할 것
+프론트엔드와 백엔드 사이에 다음 불일치가 존재합니다.
 
-- [ ] CORS 설정: 프론트엔드 도메인 허용 (`http://localhost:3000`)
-- [ ] JWT 기반 인증: Access Token + Refresh Token 발급
-- [ ] 모든 API 응답을 `ApiResponse<T>` 형식으로 통일
-- [ ] 커서 기반 페이지네이션 (피드용) + 오프셋 기반 페이지네이션 (목록용)
-- [ ] 파일 업로드 엔드포인트 (`multipart/form-data`)
-
-### 프론트엔드에서 변경할 파일 (2개만)
-
-| 파일 | 변경 내용 |
-|------|-----------|
-| `src/hooks/queries.ts` | mock → `services.ts` API 호출로 교체 |
-| `src/components/providers/AuthGuard.tsx` | `DEMO_MODE = false`로 변경 |
-
-> **이미 구현 완료된 것들** (건드릴 필요 없음):
-> - `client.ts`: Axios 인스턴스, 토큰 자동 갱신 인터셉터
-> - `endpoints.ts`: 전체 API 경로 상수
-> - `services.ts`: 타입이 정의된 API 서비스 함수
-> - `auth.ts`: Zustand 인증 스토어
-> - `types/index.ts`: TypeScript 타입 정의
+| 항목 | 프론트엔드 기대 | 백엔드 현재 | 심각도 |
+|------|---------------|-----------|--------|
+| 응답 래퍼 | `{ success, data, message }` | DTO 직접 반환 (래퍼 없음) | 🔴 치명적 |
+| 에러 형식 | `{ success, error: { code, message } }` | `{ status, message, timestamp }` | 🔴 치명적 |
+| 인증 방식 | 전체 `Authorization: Bearer` | Post만 `X-User-Id` 헤더 | 🟡 불일치 |
+| 회원가입 경로 | `POST /auth/signup` | `POST /users/register` | 🔴 치명적 |
+| 프로필 경로 | `/users/*` | `/profiles/*` | 🔴 치명적 |
+| 로그인 응답 | `{ user: {...}, tokens: {...} }` 중첩 | 플랫 `{ accessToken, userId, ... }` | 🔴 치명적 |
+| 페이지네이션 | 커서 기반 `{ items, nextCursor, hasMore }` | Spring `Page<T>` / 없음 / limit+offset 혼재 | 🔴 치명적 |
+| CORS | `http://localhost:3000` | `http://localhost:8080` (자기 자신) | 🔴 치명적 |
+| ID 필드명 | 통일된 `id` | `id` / `userId` / `tierId` 혼재 | 🟡 불일치 |
+| DTO 스타일 | — | `record` / Lombok class 혼재 | 🟢 경미 |
 
 ---
 
-## 3. Phase 1: 환경 설정
+## 2. 공통 응답 래퍼 도입
 
-### 3.1 환경 변수
+프론트엔드의 `client.ts`는 모든 API 응답이 아래 형식이라고 가정합니다.
 
-```bash
-# .env.local
-NEXT_PUBLIC_API_URL=http://localhost:8080/api
-```
-
-`client.ts`에서 이 값을 자동으로 사용:
-```typescript
-// src/lib/api/client.ts (이미 구현됨)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
-```
-
-### 3.2 DEMO_MODE 비활성화
+### 프론트엔드가 기대하는 형식
 
 ```typescript
-// src/components/providers/AuthGuard.tsx
-const DEMO_MODE = false;  // true → false로 변경
-```
-
-이 한 줄 변경으로:
-- 비로그인 시 `/login`으로 리다이렉트 활성화
-- `/admin/*` 경로에 ADMIN 역할 체크 활성화
-- 공개 경로 (`/login`, `/signup`, `/about` 등)는 인증 없이 접근 가능
-
----
-
-## 4. Phase 2: 인증 연결
-
-### 4.1 현재 Mock vs 실제 API
-
-| 훅 | Mock 동작 | 실제 API |
-|----|-----------|----------|
-| `useLogin()` | `mockUsers`에서 이메일 검색 + `password123` 고정 | `POST /auth/login` |
-| `useSignup()` | `mockUsers.push()` | `POST /auth/signup` |
-| `useLogout()` | 지연 후 상태 초기화 | `POST /auth/logout` |
-| `useMe()` | Zustand 스토어에서 반환 | `GET /auth/me` |
-
-### 4.2 교체 코드
-
-```typescript
-// src/hooks/queries.ts — useLogin 교체
-
-import { authApi } from '@/lib/api/services';
-
-export function useLogin() {
-  const login = useAuthStore((s) => s.login);
-
-  return useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const { data } = await authApi.login(email, password);
-      return data;
-    },
-    onSuccess: (data) => {
-      setAuthToken(data.tokens.accessToken);
-      // services.ts의 AuthResponse → UserWithProfile 변환
-      const user: UserWithProfile = {
-        id: data.user.id,
-        email: data.user.email,
-        nickname: data.user.nickname,
-        handle: data.user.handle,
-        status: data.user.status as UserStatus,
-        role: data.user.role as UserRole,
-        isVerified: data.user.isVerified,
-        isBlueChecked: data.user.isBlueChecked,
-        createdAt: data.user.createdAt,
-        updatedAt: data.user.createdAt,
-        profile: data.user.profile ? {
-          id: 0,
-          userId: data.user.id,
-          ...data.user.profile,
-          createdAt: data.user.createdAt,
-          updatedAt: data.user.createdAt,
-        } : undefined,
-      };
-      login(user, data.tokens);
-    },
-  });
+// src/lib/api/client.ts
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+  error?: { code: string; message: string; details?: Record<string, unknown> };
 }
 ```
 
 ```typescript
-// useSignup 교체
-export function useSignup() {
-  const login = useAuthStore((s) => s.login);
+// 프론트에서 이렇게 사용:
+const result = await api.get<UserResponse>('/users/me');
+// result = { success: true, data: { id: 1, nickname: "..." }, message: "OK" }
+// result.data 로 실제 데이터 접근
+```
 
-  return useMutation({
-    mutationFn: async ({ email, password, nickname }: { email: string; password: string; nickname: string }) => {
-      const { data } = await authApi.signup(email, password, nickname);
-      return data;
-    },
-    onSuccess: (data) => {
-      setAuthToken(data.tokens.accessToken);
-      // 위 useLogin과 동일한 변환 로직
-      login(convertUserResponse(data.user), data.tokens);
-    },
-  });
+### 백엔드에 추가할 코드
+
+#### 2-1. `ApiResponse<T>` 클래스 생성
+
+```java
+// common/presentation/dto/ApiResponse.java
+package com.duckduck.backend.common.presentation.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+
+@Getter
+@Builder
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ApiResponse<T> {
+
+    private final boolean success;
+    private final T data;
+    private final String message;
+    private final ErrorDetail error;
+
+    // 성공 응답 (데이터 + 메시지)
+    public static <T> ApiResponse<T> ok(T data) {
+        return ApiResponse.<T>builder()
+            .success(true)
+            .data(data)
+            .build();
+    }
+
+    public static <T> ApiResponse<T> ok(T data, String message) {
+        return ApiResponse.<T>builder()
+            .success(true)
+            .data(data)
+            .message(message)
+            .build();
+    }
+
+    // 성공 응답 (데이터 없음)
+    public static ApiResponse<Void> ok() {
+        return ApiResponse.<Void>builder()
+            .success(true)
+            .build();
+    }
+
+    // 에러 응답
+    public static <T> ApiResponse<T> error(String code, String message) {
+        return ApiResponse.<T>builder()
+            .success(false)
+            .error(new ErrorDetail(code, message, null))
+            .build();
+    }
+
+    public record ErrorDetail(
+        String code,
+        String message,
+        Object details
+    ) {}
 }
 ```
 
-```typescript
-// useLogout 교체
-export function useLogout() {
-  const logout = useAuthStore((s) => s.logout);
-  const queryClient = useQueryClient();
+#### 2-2. 컨트롤러 수정 예시
 
-  return useMutation({
-    mutationFn: async () => {
-      await authApi.logout();
-    },
-    onSettled: () => {
-      clearAuthToken();
-      logout();
-      queryClient.clear();
-    },
-  });
+```java
+// ❌ 변경 전
+@PostMapping("/login")
+public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    LoginResult result = loginUseCase.login(request.toCommand());
+    return ResponseEntity.ok(LoginResponse.from(result));
+}
+
+// ✅ 변경 후
+@PostMapping("/login")
+public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
+    LoginResult result = loginUseCase.login(request.toCommand());
+    return ResponseEntity.ok(ApiResponse.ok(AuthResponse.from(result)));
 }
 ```
 
-```typescript
-// useMe 교체
-export function useMe() {
-  const tokens = useAuthStore((s) => s.tokens);
+> 모든 컨트롤러의 `ResponseEntity<XxxResponse>`를 `ResponseEntity<ApiResponse<XxxResponse>>`로 변경합니다.
+>
+> 문자열을 직접 반환하는 엔드포인트(`ResponseEntity<String>`)도 `ApiResponse.ok(null, "메시지")`로 변경합니다.
 
-  return useQuery({
-    queryKey: ['auth', 'me'],
-    queryFn: async () => {
-      const { data } = await authApi.me();
-      return convertUserResponse(data);
-    },
-    enabled: !!tokens?.accessToken,
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-```
+---
 
-### 4.3 백엔드 응답 형식
+## 3. 에러 응답 형식 통일
+
+### 프론트엔드가 기대하는 에러 형식
 
 ```json
-// POST /auth/login
-// Request
-{ "email": "user@example.com", "password": "..." }
-
-// Response
 {
-  "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "handle": "duckking",
-    "nickname": "오리왕",
-    "status": "ACTIVE",
-    "role": "USER",
-    "isVerified": true,
-    "isBlueChecked": false,
-    "profile": {
-      "profileImageUrl": "/images/avatar1.jpg",
-      "backgroundImageUrl": null,
-      "bio": "안녕하세요",
-      "followerCount": 150,
-      "followingCount": 89,
-      "postCount": 42,
-      "hasMembership": false
-    },
-    "createdAt": "2024-01-01T00:00:00Z"
-  },
-  "tokens": {
-    "accessToken": "eyJhbG...",
-    "refreshToken": "eyJhbG...",
-    "expiresIn": 3600
+  "success": false,
+  "error": {
+    "code": "AUTH_INVALID_CREDENTIALS",
+    "message": "이메일 또는 비밀번호가 올바르지 않습니다."
   }
 }
 ```
 
-### 4.4 토큰 갱신 (이미 구현됨)
+프론트의 `getErrorMessage()` 함수가 이 구조에서 메시지를 추출합니다:
 
-`client.ts`의 응답 인터셉터가 401 에러를 감지하면:
-1. `POST /auth/refresh`로 새 토큰 요청
-2. 성공 시 원래 요청 재시도
-3. 실패 시 로그아웃 + `/login` 리다이렉트
+```typescript
+// client.ts
+export const getErrorMessage = (error: unknown): string => {
+  if (isApiError(error)) {
+    return (
+      error.response?.data?.error?.message ||  // ← 여기서 추출
+      error.response?.data?.message ||
+      error.message
+    );
+  }
+};
+```
 
+### `GlobalExceptionHandler` 수정
+
+```java
+// ❌ 변경 전
+@ExceptionHandler(LoginFailedException.class)
+public ResponseEntity<ErrorResponse> handleLoginFailed(LoginFailedException e) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(new ErrorResponse(HttpStatus.UNAUTHORIZED.value(), e.getMessage(), LocalDateTime.now()));
+}
+
+public record ErrorResponse(int status, String message, LocalDateTime timestamp) {}
 ```
-별도 구현 불필요 — Axios 인터셉터에서 자동 처리
+
+```java
+// ✅ 변경 후
+@ExceptionHandler(LoginFailedException.class)
+public ResponseEntity<ApiResponse<Void>> handleLoginFailed(LoginFailedException e) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(ApiResponse.error("AUTH_INVALID_CREDENTIALS", e.getMessage()));
+}
 ```
+
+### 에러 코드 표준 목록 (권장)
+
+| 에러 코드 | HTTP 상태 | 설명 |
+|----------|----------|------|
+| `AUTH_INVALID_CREDENTIALS` | 401 | 이메일/비밀번호 불일치 |
+| `AUTH_TOKEN_EXPIRED` | 401 | 토큰 만료 |
+| `AUTH_TOKEN_INVALID` | 401 | 유효하지 않은 토큰 |
+| `AUTH_UNAUTHORIZED` | 401 | 인증 필요 |
+| `USER_NOT_FOUND` | 404 | 사용자 없음 |
+| `USER_DUPLICATE_EMAIL` | 409 | 이메일 중복 |
+| `USER_DUPLICATE_NICKNAME` | 409 | 닉네임 중복 |
+| `USER_NOT_ACTIVE` | 403 | 비활성 사용자 |
+| `VALIDATION_ERROR` | 400 | 입력값 유효성 실패 |
+| `VERIFICATION_INVALID` | 400 | 인증번호 불일치/만료 |
+| `EMAIL_SEND_FAILED` | 500 | 이메일 발송 실패 |
+| `INTERNAL_ERROR` | 500 | 서버 내부 오류 |
 
 ---
 
-## 5. Phase 3: 피드 & 게시글 연결
+## 4. 인증 방식 통일
 
-### 5.1 피드 훅 교체
+### 현재 문제
 
-```typescript
-import { feedApi } from '@/lib/api/services';
+```java
+// PostController — X-User-Id 커스텀 헤더 사용 ❌
+@PostMapping
+public ResponseEntity<PostResponse> createPost(
+    @RequestHeader("X-User-Id") Long userId,     // ← 이것
+    @Valid @RequestBody PostCreateRequest request
+) { ... }
 
-// useHomeFeed 교체
-export function useHomeFeed() {
-  return useInfiniteQuery({
-    queryKey: ['feed', 'home'],
-    queryFn: async ({ pageParam }) => {
-      const { data } = await feedApi.home({ cursor: pageParam, limit: 20 });
-      return data;  // { items: FeedItemResponse[], nextCursor, hasMore }
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor : undefined,
-    staleTime: 60 * 1000,
-  });
-}
+// ProfileController — @CurrentUser 사용 ✅
+@PostMapping("/{userId}/follow")
+public ResponseEntity<FollowResponse> follow(
+    @PathVariable Long userId,
+    @CurrentUser AuthenticatedUser currentUser    // ← 이것
+) { ... }
+```
 
-// useFollowingFeed 교체
-export function useFollowingFeed() {
-  return useInfiniteQuery({
-    queryKey: ['feed', 'following'],
-    queryFn: async ({ pageParam }) => {
-      const { data } = await feedApi.following({ cursor: pageParam, limit: 20 });
-      return data;
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor : undefined,
-    staleTime: 60 * 1000,
-  });
-}
+### 수정 방법
 
-// useCategoryFeed 교체
-export function useCategoryFeed(categoryId: number) {
-  return useInfiniteQuery({
-    queryKey: ['feed', 'category', categoryId],
-    queryFn: async ({ pageParam }) => {
-      const { data } = await feedApi.category(categoryId, { cursor: pageParam, limit: 20 });
-      return data;
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!categoryId,
-  });
+`PostController`의 모든 메서드에서 `@RequestHeader("X-User-Id")`를 `@CurrentUser AuthenticatedUser`로 변경합니다.
+
+```java
+// ✅ 변경 후
+@PostMapping
+public ResponseEntity<ApiResponse<PostWithAuthorResponse>> createPost(
+    @CurrentUser AuthenticatedUser currentUser,
+    @Valid @RequestBody PostCreateRequest request
+) {
+    Post post = postService.createPost(
+        request.content(),
+        request.visibility(),
+        request.isSubscribersOnly(),
+        currentUser.userId(),           // ← @CurrentUser에서 추출
+        request.categoryId()
+    );
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.ok(PostWithAuthorResponse.from(post)));
 }
 ```
 
-### 5.2 게시글 CRUD 훅 교체
+> `PostController`의 `createPost`, `updatePost`, `deletePost`, `deleteAllPostsByUserId` 4개 메서드 모두 변경 필요.
 
-```typescript
-import { postsApi } from '@/lib/api/services';
+---
 
-// usePost 교체
-export function usePost(postId: number) {
-  return useQuery({
-    queryKey: ['post', postId],
-    queryFn: async () => {
-      const { data } = await postsApi.get(postId);
-      return data;
-    },
-    enabled: !!postId,
-  });
-}
+## 5. 엔드포인트 경로 매핑
 
-// useCreatePost 교체
-export function useCreatePost() {
-  const queryClient = useQueryClient();
+프론트엔드가 호출하는 경로(`endpoints.ts`)와 백엔드 현재 경로의 대조표입니다.
 
-  return useMutation({
-    mutationFn: async (data: {
-      content: string;
-      categoryId?: number | null;
-      visibility?: string;
-      mediaIds?: number[];
-    }) => {
-      const { data: response } = await postsApi.create(data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-    },
-  });
-}
+### 5-1. 인증 (Auth)
 
-// useUpdatePost 교체
-export function useUpdatePost() {
-  const queryClient = useQueryClient();
+| 프론트 경로 | 백엔드 현재 | 상태 | 수정 방법 |
+|------------|-----------|------|---------|
+| `POST /auth/login` | `POST /auth/login` | ✅ 경로 일치 | 응답 형식만 수정 |
+| `POST /auth/signup` | `POST /users/register` | ❌ 경로 다름 | `AuthController`에 추가하거나 프론트 수정 |
+| `POST /auth/logout` | 없음 | ❌ 미구현 | 구현 필요 |
+| `POST /auth/refresh` | `POST /auth/refresh` | ✅ 경로 일치 | 응답 형식만 수정 |
+| `GET /auth/me` | 없음 | ❌ 미구현 | 구현 필요 |
+| `POST /auth/change-password` | `POST /auth/password-reset` | ❌ 경로+동작 다름 | 별도 구현 필요 |
 
-  return useMutation({
-    mutationFn: async ({ postId, ...data }: {
-      postId: number;
-      content?: string;
-      categoryId?: number | null;
-    }) => {
-      const { data: response } = await postsApi.update(postId, data);
-      return response;
-    },
-    onSuccess: (updated, variables) => {
-      queryClient.setQueryData(['post', variables.postId], updated);
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-    },
-  });
-}
+#### 회원가입 경로 수정
 
-// useDeletePost 교체
-export function useDeletePost() {
-  const queryClient = useQueryClient();
+**옵션 A:** 백엔드에 `/auth/signup` 추가 (권장)
 
-  return useMutation({
-    mutationFn: async (postId: number) => {
-      await postsApi.delete(postId);
-      return { postId };
-    },
-    onSuccess: (_, postId) => {
-      queryClient.removeQueries({ queryKey: ['post', postId] });
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-    },
-  });
+```java
+// AuthController.java에 추가
+@PostMapping("/signup")
+public ResponseEntity<ApiResponse<AuthResponse>> signup(
+    @Valid @RequestBody SignupRequest request
+) {
+    // 회원가입 + 자동 로그인 (토큰 발급)
+    User user = registerUserUseCase.register(request.toCommand());
+    LoginResult loginResult = loginUseCase.login(
+        new LoginCommand(request.email(), request.password())
+    );
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.ok(AuthResponse.from(user, loginResult)));
 }
 ```
 
-### 5.3 좋아요 / 북마크 / 리포스트
+**옵션 B:** 프론트엔드의 `endpoints.ts`를 수정
 
 ```typescript
-// useLikePost 교체 (낙관적 업데이트 유지)
-export function useLikePost() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ postId, isLiked }: { postId: number; isLiked: boolean }) => {
-      if (isLiked) {
-        const { data } = await postsApi.unlike(postId);
-        return { postId, liked: data.liked };
-      } else {
-        const { data } = await postsApi.like(postId);
-        return { postId, liked: data.liked };
-      }
-    },
-    // 낙관적 업데이트 (onMutate, onError 로직은 현재와 동일하게 유지)
-    onMutate: async ({ postId, isLiked }) => {
-      await queryClient.cancelQueries({ queryKey: ['post', postId] });
-      const prev = queryClient.getQueryData<PostWithAuthor>(['post', postId]);
-      if (prev) {
-        queryClient.setQueryData(['post', postId], {
-          ...prev,
-          isLiked: !isLiked,
-          likeCount: isLiked ? prev.likeCount - 1 : prev.likeCount + 1,
-        });
-      }
-      return { prev };
-    },
-    onError: (_, { postId }, context) => {
-      if (context?.prev) queryClient.setQueryData(['post', postId], context.prev);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-    },
-  });
-}
-
-// useBookmarkPost 교체
-export function useBookmarkPost() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (postId: number) => {
-      const { data } = await postsApi.bookmark(postId);
-      return { postId, bookmarked: data.bookmarked };
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-      queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-    },
-  });
-}
-
-// useRepostPost 교체
-export function useRepostPost() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (postId: number) => {
-      const { data } = await postsApi.repost(postId);
-      return { postId, reposted: data.reposted };
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-    },
-  });
+// endpoints.ts
+AUTH: {
+  SIGNUP: '/users/register',  // '/auth/signup' → '/users/register'
 }
 ```
 
-### 5.4 백엔드 피드 응답 형식
+### 5-2. 유저/프로필
 
-```json
-// GET /feed/home?cursor=abc123&limit=20
+| 프론트 경로 | 백엔드 현재 | 상태 | 수정 방법 |
+|------------|-----------|------|---------|
+| `GET /users/me` | 없음 | ❌ | 구현 필요 |
+| `PATCH /users/me/profile` | `PATCH /profiles/{userId}` | ❌ 경로 다름 | 아래 참고 |
+| `GET /users/{id}` | `GET /profiles/{userId}` | ❌ 경로 다름 | 아래 참고 |
+| `GET /users/nickname/{nickname}` | 없음 | ❌ | 구현 필요 (nickname 검색) |
+| `GET /users/handle/{handle}` | 없음 | ❌ | 구현 필요 |
+| `GET /users/{id}/followers` | `GET /profiles/{id}/followers` | ❌ 경로 다름 | 아래 참고 |
+| `GET /users/{id}/following` | `GET /profiles/{id}/following` | ❌ 경로 다름 | 아래 참고 |
+| `POST /users/{id}/follow` | `POST /profiles/{id}/follow` | ❌ 경로 다름 | 아래 참고 |
+| `DELETE /users/{id}/follow` | `DELETE /profiles/{id}/follow` | ❌ 경로 다름 | 아래 참고 |
+
+#### 프로필 경로 수정
+
+**옵션 A:** `ProfileController`의 `@RequestMapping`을 변경 (권장)
+
+```java
+// ❌ 변경 전
+@RequestMapping("/api/profiles")
+
+// ✅ 변경 후
+@RequestMapping("/api/users")
+```
+
+그리고 프로필 조회를 `{userId}` 대신 다양한 방식으로 지원:
+
+```java
+@GetMapping("/me")
+public ResponseEntity<ApiResponse<UserWithProfileResponse>> getMyProfile(
+    @CurrentUser AuthenticatedUser currentUser
+) { ... }
+
+@GetMapping("/{id}")
+public ResponseEntity<ApiResponse<UserWithProfileResponse>> getUserById(
+    @PathVariable Long id
+) { ... }
+
+@GetMapping("/nickname/{nickname}")
+public ResponseEntity<ApiResponse<UserWithProfileResponse>> getUserByNickname(
+    @PathVariable String nickname
+) { ... }
+```
+
+**옵션 B:** 프론트엔드의 `endpoints.ts`를 수정
+
+```typescript
+USERS: {
+  GET: (id: number) => `/profiles/${id}`,
+  FOLLOWERS: (id: number) => `/profiles/${id}/followers`,
+  // ...
+}
+```
+
+### 5-3. 게시글 (Posts)
+
+| 프론트 경로 | 백엔드 현재 | 상태 |
+|------------|-----------|------|
+| `POST /posts` | `POST /posts` | ✅ 경로 일치 |
+| `GET /posts/{id}` | `GET /posts/{id}` | ✅ 경로 일치 |
+| `PATCH /posts/{id}` | `PUT /posts/{id}` | ❌ HTTP 메서드 다름 (PUT→PATCH) |
+| `DELETE /posts/{id}` | `DELETE /posts/{id}` | ✅ 경로 일치 |
+| `POST /posts/{id}/like` | 없음 (`feat/postLike` 브랜치) | ❌ 미머지 |
+| `DELETE /posts/{id}/like` | 없음 | ❌ 미머지 |
+| `POST /posts/{id}/bookmark` | 없음 | ❌ 미구현 |
+| `POST /posts/{id}/repost` | 없음 | ❌ 미구현 |
+
+### 5-4. 피드 (Feed)
+
+| 프론트 경로 | 백엔드 현재 | 상태 |
+|------------|-----------|------|
+| `GET /feed/home` | 없음 | ❌ 미구현 |
+| `GET /feed/following` | 없음 | ❌ 미구현 |
+| `GET /feed/category/{id}` | `GET /posts/category/{id}` | ❌ 경로 다름 |
+| `GET /users/{id}/posts` | `GET /posts/user/{id}` | ❌ 경로 다름 |
+
+### 5-5. 나머지 (전부 미구현)
+
+| 도메인 | 프론트 경로 | 백엔드 현재 |
+|--------|-----------|-----------|
+| 댓글 | `/comments/*` | 엔티티만 존재, API 없음 |
+| 카테고리 | `/categories/*` | 없음 |
+| 검색 | `/search/*` | `feature/search-api` 브랜치 (미머지) |
+| 알림 | `/notifications/*` | `feat/noti` 브랜치 (미머지) |
+| 메시지 | `/messages/*` | `feature/messaging` 브랜치 (미머지) |
+| 북마크 | `/bookmarks/*` | 없음 |
+| 파일 | `/files/*` | 없음 |
+| 설정 | `/users/settings` | 없음 |
+| 프리미엄 | `/premium/*` | 없음 |
+| 관리자 | `/admin/*` | 없음 |
+
+---
+
+## 6. 응답 DTO 수정
+
+### 6-1. 로그인 응답
+
+```java
+// ❌ 현재 백엔드 LoginResponse
 {
-  "items": [
-    {
-      "type": "post",
-      "post": {
-        "id": 1,
-        "userId": 1,
-        "categoryId": 1,
-        "content": "글 내용...",
-        "visibility": "PUBLIC",
-        "isPinned": false,
-        "likeCount": 5,
-        "commentCount": 3,
-        "repostCount": 1,
-        "viewCount": 100,
-        "bookmarkCount": 2,
-        "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-01T00:00:00Z",
-        "author": { /* UserWithProfileResponse */ },
-        "media": [ /* PostMediaResponse[] */ ],
-        "category": { /* CategoryResponse */ },
-        "isLiked": false,
-        "isBookmarked": false,
-        "isReposted": false,
-        "quotedPost": null
-      },
-      "timestamp": "2024-01-01T00:00:00Z"
-    }
-  ],
-  "nextCursor": "eyJpZCI6MTB9",
-  "hasMore": true
+  "accessToken": "eyJ...",
+  "refreshToken": "eyJ...",
+  "userId": 1,
+  "email": "user@example.com",
+  "nickname": "덕덕이"
 }
 ```
 
----
-
-## 6. Phase 4: 댓글 연결
-
-```typescript
-import { commentsApi } from '@/lib/api/services';
-
-// useComments 교체
-export function useComments(postId: number) {
-  return useQuery({
-    queryKey: ['comments', postId],
-    queryFn: async () => {
-      const { data } = await commentsApi.byPost(postId);
-      return data;  // { items: CommentWithAuthorResponse[] }
-    },
-    enabled: !!postId,
-  });
-}
-
-// useCreateComment 교체
-export function useCreateComment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (data: { postId: number; parentId?: number | null; content: string }) => {
-      const { data: response } = await commentsApi.create(data);
-      return response;
-    },
-    onSuccess: (newComment, variables) => {
-      queryClient.setQueryData(['comments', variables.postId], (old: any) => {
-        const prev = old?.items ?? [];
-        return { ...old, items: [...prev, newComment] };
-      });
-      queryClient.setQueryData(['post', variables.postId], (old: PostWithAuthor | undefined) => {
-        if (!old) return old;
-        return { ...old, commentCount: old.commentCount + 1 };
-      });
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-    },
-  });
-}
-
-// useLikeComment 교체
-export function useLikeComment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ commentId, isLiked, postId }: { commentId: number; isLiked: boolean; postId: number }) => {
-      if (isLiked) {
-        await commentsApi.unlike(commentId);
-      } else {
-        await commentsApi.like(commentId);
-      }
-      return { commentId, liked: !isLiked };
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['comments', variables.postId] });
-    },
-  });
-}
-
-// useDeleteComment 교체
-export function useDeleteComment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ commentId }: { commentId: number; postId: number }) => {
-      await commentsApi.delete(commentId);
-      return { commentId };
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['comments', variables.postId] });
-      queryClient.setQueryData(['post', variables.postId], (old: PostWithAuthor | undefined) => {
-        if (!old) return old;
-        return { ...old, commentCount: Math.max(0, old.commentCount - 1) };
-      });
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-    },
-  });
-}
-```
-
----
-
-## 7. Phase 5: 유저 & 프로필 연결
-
-```typescript
-import { usersApi, feedApi } from '@/lib/api/services';
-
-// useUserByNickname 교체
-export function useUserByNickname(nickname: string) {
-  return useQuery({
-    queryKey: ['user', 'nickname', nickname],
-    queryFn: async () => {
-      const { data } = await usersApi.getByNickname(nickname);
-      return data;  // UserWithProfileResponse (includes isFollowing)
-    },
-    enabled: !!nickname,
-  });
-}
-
-// useUserPosts 교체
-export function useUserPosts(userId: number) {
-  return useInfiniteQuery({
-    queryKey: ['user', userId, 'posts'],
-    queryFn: async ({ pageParam }) => {
-      const { data } = await feedApi.userPosts(userId, { cursor: pageParam, limit: 20 });
-      return data;
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor : undefined,
-    enabled: !!userId,
-  });
-}
-
-// useFollow 교체
-export function useFollow() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, isFollowing }: { userId: number; isFollowing: boolean }) => {
-      if (isFollowing) {
-        await usersApi.unfollow(userId);
-        return { userId, following: false };
-      } else {
-        await usersApi.follow(userId);
-        return { userId, following: true };
-      }
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['user', 'nickname'] });
-      queryClient.invalidateQueries({ queryKey: ['user', result.userId] });
-    },
-  });
-}
-
-// useFollowers 교체
-export function useFollowers(userId: number, page = 0) {
-  return useQuery({
-    queryKey: ['user', userId, 'followers', page],
-    queryFn: async () => {
-      const { data } = await usersApi.followers(userId, { page, pageSize: 20 });
-      return data;
-    },
-    enabled: !!userId,
-  });
-}
-
-// useFollowing 교체
-export function useFollowing(userId: number, page = 0) {
-  return useQuery({
-    queryKey: ['user', userId, 'following', page],
-    queryFn: async () => {
-      const { data } = await usersApi.following(userId, { page, pageSize: 20 });
-      return data;
-    },
-    enabled: !!userId,
-  });
-}
-
-// useUpdateProfile 교체
-export function useUpdateProfile() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (data: { nickname?: string; bio?: string; profileImageUrl?: string }) => {
-      const { data: response } = await usersApi.updateProfile(data);
-      return response;
-    },
-    onSuccess: (updated) => {
-      useAuthStore.getState().setUser(convertUserResponse(updated));
-      queryClient.invalidateQueries({ queryKey: ['user'] });
-      queryClient.invalidateQueries({ queryKey: ['auth'] });
-    },
-  });
-}
-```
-
----
-
-## 8. Phase 6: 카테고리 & 검색 연결
-
-```typescript
-import { categoriesApi, searchApi } from '@/lib/api/services';
-
-// useCategories 교체
-export function useCategories() {
-  return useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const { data } = await categoriesApi.list();
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-// useCategory 교체
-export function useCategory(categoryId: number) {
-  return useQuery({
-    queryKey: ['category', categoryId],
-    queryFn: async () => {
-      const { data } = await categoriesApi.get(categoryId);
-      return data;
-    },
-    enabled: !!categoryId,
-  });
-}
-
-// useSearch 교체
-export function useSearch(query: string) {
-  return useQuery({
-    queryKey: ['search', query],
-    queryFn: async () => {
-      const { data } = await searchApi.search({ q: query });
-      return data;  // { posts, users, categories }
-    },
-    enabled: query.length > 0,
-    staleTime: 30 * 1000,
-  });
-}
-```
-
----
-
-## 9. Phase 7: 부가 기능 연결
-
-현재 mock으로만 동작하며, 별도의 services.ts 확장이 필요한 기능들:
-
-### 9.1 알림
-
-```
-GET    /notifications              → 알림 목록 (커서 페이지네이션)
-POST   /notifications/:id/read     → 읽음 처리
-POST   /notifications/read-all     → 전체 읽음
-GET    /notifications/unread-count  → 미읽은 개수
-```
-
-### 9.2 메시지 (DM)
-
-```
-GET    /messages/conversations     → 대화 목록
-GET    /messages/received          → 받은 메시지
-POST   /messages                   → 메시지 전송
-POST   /messages/:id/read          → 읽음 처리
-DELETE /messages/:id               → 삭제
-```
-
-### 9.3 북마크
-
-```
-GET    /bookmarks                  → 북마크 목록
-POST   /bookmarks                  → 북마크 추가
-DELETE /bookmarks/:postId          → 북마크 제거
-GET    /bookmarks/lists            → 북마크 폴더 목록
-POST   /bookmarks/:id/move         → 폴더 이동
-```
-
-### 9.4 파일 업로드
-
-```
-POST   /files                      → 단일 파일 업로드 (multipart/form-data)
-POST   /files/multiple             → 다중 파일 업로드
-GET    /files/:filename            → 파일 다운로드
-```
-
-### 9.5 프리미엄 & 구독
-
-```
-GET    /premium/status             → 프리미엄 상태
-POST   /premium/subscribe          → 프리미엄 가입
-POST   /premium/cancel             → 프리미엄 해지
-GET    /users/tiers                → 팬 구독 티어 목록
-POST   /users/tiers                → 티어 생성
-POST   /subscriptions/fan          → 팬 구독
-```
-
-### 9.6 관리자
-
-```
-GET    /admin/dashboard/stats      → 대시보드 통계
-GET    /admin/reports              → 신고 목록
-PATCH  /admin/reports/:id          → 신고 처리
-GET    /admin/category-requests    → 카테고리 신청 목록
-PATCH  /admin/category-requests/:id → 신청 승인/거절
-GET    /admin/users                → 유저 관리
-PATCH  /admin/users/:id/status     → 유저 상태 변경
-```
-
-### 9.7 익명 질문 & Q&A (신규 엔드포인트 필요)
-
-현재 프론트엔드에 구현된 기능이지만 `endpoints.ts`에 아직 없으므로 백엔드에 추가 필요:
-
-```
-POST   /posts/:id/questions        → 익명 질문 전송
-GET    /questions/received         → 받은 질문 목록
-POST   /posts (qaItems 포함)       → Q&A 답변 게시글 생성
-```
-
----
-
-## 10. API 엔드포인트 전체 목록
-
-> `src/lib/api/endpoints.ts`에 정의된 전체 경로
-
-### 인증 (Auth)
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/auth/login` | 로그인 |
-| POST | `/auth/signup` | 회원가입 |
-| POST | `/auth/logout` | 로그아웃 |
-| POST | `/auth/refresh` | 토큰 갱신 |
-| GET | `/auth/me` | 내 정보 조회 |
-| POST | `/auth/social` | 소셜 로그인 |
-| POST | `/auth/verification/send` | 인증 메일 발송 |
-| POST | `/auth/verification/verify` | 인증 확인 |
-| POST | `/auth/change-password` | 비밀번호 변경 |
-| GET | `/auth/sessions` | 로그인 세션 목록 |
-| DELETE | `/auth/sessions/:id` | 세션 삭제 |
-| DELETE | `/auth/account` | 계정 삭제 |
-
-### 유저 (Users)
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/users/me` | 내 프로필 |
-| PATCH | `/users/me/profile` | 프로필 수정 |
-| GET | `/users/:id` | 유저 조회 |
-| GET | `/users/nickname/:nickname` | 닉네임으로 조회 |
-| GET | `/users/handle/:handle` | 핸들로 조회 |
-| GET | `/users/:id/followers` | 팔로워 목록 |
-| GET | `/users/:id/following` | 팔로잉 목록 |
-| POST | `/users/:id/follow` | 팔로우 |
-| DELETE | `/users/:id/follow` | 언팔로우 |
-| POST | `/users/:id/block` | 차단 |
-| DELETE | `/users/:id/block` | 차단 해제 |
-| GET | `/users/settings` | 설정 조회 |
-| PATCH | `/users/settings` | 설정 수정 |
-
-### 게시글 (Posts)
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/posts` | 게시글 작성 |
-| GET | `/posts/:id` | 게시글 조회 |
-| PATCH | `/posts/:id` | 게시글 수정 |
-| DELETE | `/posts/:id` | 게시글 삭제 |
-| POST | `/posts/:id/like` | 좋아요 |
-| DELETE | `/posts/:id/like` | 좋아요 취소 |
-| POST | `/posts/:id/bookmark` | 북마크 |
-| POST | `/posts/:id/repost` | 리포스트 |
-
-### 피드 (Feed)
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/feed/home` | 홈 피드 |
-| GET | `/feed/following` | 팔로잉 피드 |
-| GET | `/feed/category/:id` | 카테고리 피드 |
-| GET | `/users/:id/posts` | 유저 게시글 |
-
-### 댓글 (Comments)
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/comments/post/:postId` | 게시글 댓글 |
-| POST | `/comments` | 댓글 작성 |
-| PATCH | `/comments/:id` | 댓글 수정 |
-| DELETE | `/comments/:id` | 댓글 삭제 |
-| POST | `/comments/:id/like` | 댓글 좋아요 |
-| DELETE | `/comments/:id/like` | 댓글 좋아요 취소 |
-
-### 카테고리 (Categories)
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/categories` | 카테고리 목록 |
-| GET | `/categories/:id` | 카테고리 상세 |
-| POST | `/categories/:id/subscribe` | 구독 |
-| DELETE | `/categories/:id/subscribe` | 구독 해제 |
-
-### 검색 (Search)
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/search?q=keyword` | 통합 검색 |
-| GET | `/search/trending` | 트렌딩 키워드 |
-
----
-
-## 11. 백엔드 응답 형식 규격
-
-### 11.1 기본 응답 래퍼 (선택)
-
-프론트엔드의 `services.ts`는 Axios 응답의 `.data`를 직접 사용합니다.
-백엔드가 래퍼를 사용할 경우 `client.ts` 인터셉터에서 언래핑 처리:
-
-```json
-// 옵션 A: 직접 반환 (현재 services.ts 기대 형식)
-{ "id": 1, "email": "..." }
-
-// 옵션 B: ApiResponse 래퍼 사용 시
+```java
+// ✅ 프론트엔드가 기대하는 형식 (ApiResponse 래핑 후)
 {
   "success": true,
-  "data": { "id": 1, "email": "..." },
-  "message": "OK"
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com",
+      "handle": "duckking",
+      "nickname": "덕덕이",
+      "status": "ACTIVE",
+      "role": "USER",
+      "isVerified": true,
+      "isBlueChecked": false,
+      "profile": {
+        "profileImageUrl": null,
+        "backgroundImageUrl": null,
+        "bio": "",
+        "followerCount": 0,
+        "followingCount": 0,
+        "postCount": 0,
+        "hasMembership": false
+      },
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    "tokens": {
+      "accessToken": "eyJ...",
+      "refreshToken": "eyJ...",
+      "expiresIn": 1800
+    }
+  }
 }
-// → client.ts 응답 인터셉터에서 response.data.data로 언래핑
 ```
 
-### 11.2 페이지네이션 응답
+#### 새로 만들 DTO
+
+```java
+// auth/presentation/dto/AuthResponse.java
+public record AuthResponse(
+    UserResponse user,
+    TokenResponse tokens
+) {
+    public record TokenResponse(
+        String accessToken,
+        String refreshToken,
+        long expiresIn
+    ) {}
+}
+```
+
+### 6-2. 유저/프로필 응답
+
+프론트엔드의 `UserWithProfileResponse`에 맞춰야 합니다.
+
+```java
+// ❌ 현재: 필드명 불일치, 누락 필드 다수
+ProfileResponse {
+  userId,              // → id
+  emailVerified,       // → isVerified
+  badgeVisible,        // → isBlueChecked
+  isOwnProfile,        // 프론트에 없음
+  subscriptionEnabled  // → hasMembership (profile 안으로)
+  // handle 없음
+  // isFollowing 없음
+  // isFollowedBy 없음
+  // updatedAt 없음
+}
+```
+
+```java
+// ✅ 프론트엔드 기대 형식에 맞춘 새 DTO
+public record UserWithProfileResponse(
+    Long id,
+    String email,
+    String handle,
+    String nickname,
+    String status,
+    String role,
+    boolean isVerified,
+    boolean isBlueChecked,
+    ProfileResponse profile,
+    Boolean isFollowing,
+    Boolean isFollowedBy,
+    String createdAt,
+    String updatedAt
+) {
+    public record ProfileResponse(
+        String profileImageUrl,
+        String backgroundImageUrl,
+        String bio,
+        int followerCount,
+        int followingCount,
+        int postCount,
+        boolean hasMembership
+    ) {}
+}
+```
+
+#### 필드 매핑 표
+
+| 프론트엔드 필드 | 백엔드 현재 필드 | 변환 방법 |
+|---------------|---------------|---------|
+| `id` | `userId` | 필드명 변경 |
+| `handle` | 없음 | User 엔티티에 `handle` 필드 추가 |
+| `isVerified` | `emailVerified` | 필드명 변경 |
+| `isBlueChecked` | `badgeVisible` | 필드명 변경 |
+| `profile.hasMembership` | `subscriptionEnabled` | profile 안으로 이동 |
+| `isFollowing` | 없음 | 조회 시 팔로우 관계 확인 로직 추가 |
+| `isFollowedBy` | 없음 | 조회 시 팔로우 관계 확인 로직 추가 |
+| `updatedAt` | 없음 | User 엔티티에서 가져오기 |
+
+### 6-3. 게시글 응답
+
+```java
+// ❌ 현재: 작성자 정보 없음, 미디어 없음, 상호작용 상태 없음
+PostResponse {
+  id, content, visibility, isSubscribersOnly,
+  likeCount, commentCount, repostCount, viewCount, bookmarkCount,
+  userId, categoryId, createdAt, updatedAt
+}
+```
+
+```java
+// ✅ 프론트엔드가 기대하는 형식
+public record PostWithAuthorResponse(
+    Long id,
+    Long userId,
+    Long categoryId,
+    String content,
+    String visibility,
+    boolean isPinned,
+    int likeCount,
+    int commentCount,
+    int repostCount,
+    int viewCount,
+    int bookmarkCount,
+    String createdAt,
+    String updatedAt,
+    UserWithProfileResponse author,       // ← 중첩 유저 객체 추가
+    List<PostMediaResponse> media,        // ← 미디어 배열 추가
+    CategoryResponse category,            // ← 중첩 카테고리 추가
+    Boolean isLiked,                      // ← 현재 유저 상호작용 상태
+    Boolean isBookmarked,
+    Boolean isReposted,
+    PostWithAuthorResponse quotedPost     // ← 인용 게시글
+) {}
+```
+
+> **주의:** `author`, `category`를 함께 반환하려면 서비스 레이어에서 JOIN 또는 추가 조회가 필요합니다.
+
+### 6-4. 팔로우 응답
+
+```java
+// ❌ 현재 FollowResponse
+{ "following": true, "followerCount": 150, "followingCount": 89 }
+
+// ✅ 프론트엔드 기대
+{ "followed": true }
+```
+
+### 6-5. 팔로워/팔로잉 목록 응답
+
+```java
+// ❌ 현재 FollowUserResponse
+{ "userId": 1, "nickname": "...", "profileImageUrl": "...", "bio": "...", "followerCount": 150, "badgeVisible": true }
+
+// ✅ 프론트엔드 기대 — UserWithProfileResponse (6-2 참고) 그대로 사용
+```
+
+### 6-6. 토큰 갱신 응답
+
+```java
+// ❌ 현재 RefreshTokenResponse
+{ "accessToken": "eyJ...", "refreshToken": "eyJ..." }
+
+// ✅ 프론트엔드 기대 (client.ts 라인 79)
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJ...",
+    "refreshToken": "eyJ..."
+  }
+}
+```
+
+> `client.ts`에서 `response.data.data.accessToken`으로 접근하므로 `ApiResponse` 래퍼만 씌우면 됩니다.
+
+---
+
+## 7. 페이지네이션 통일
+
+프론트엔드는 두 가지 페이지네이션을 사용합니다.
+
+### 7-1. 커서 기반 (피드, 무한 스크롤)
 
 ```typescript
-// 커서 기반 (피드용)
+// 프론트엔드 services.ts
 interface CursorResponse<T> {
   items: T[];
-  nextCursor: string | null;  // base64 인코딩된 커서
+  nextCursor: string | null;
   hasMore: boolean;
 }
+```
 
-// 오프셋 기반 (목록용)
+**사용하는 곳:** 홈 피드, 팔로잉 피드, 카테고리 피드, 유저 게시글, 북마크, 알림
+
+```java
+// 백엔드 구현 예시
+public record CursorResponse<T>(
+    List<T> items,
+    String nextCursor,
+    boolean hasMore
+) {
+    public static <T> CursorResponse<T> of(List<T> items, int limit) {
+        boolean hasMore = items.size() > limit;
+        List<T> result = hasMore ? items.subList(0, limit) : items;
+        String cursor = hasMore && !result.isEmpty()
+            ? encodeCursor(result.get(result.size() - 1))
+            : null;
+        return new CursorResponse<>(result, cursor, hasMore);
+    }
+}
+```
+
+### 7-2. 오프셋 기반 (목록)
+
+```typescript
+// 프론트엔드 services.ts
 interface PageResponse<T> {
   items: T[];
   total: number;
@@ -941,90 +660,169 @@ interface PageResponse<T> {
 }
 ```
 
-### 11.3 에러 응답
+**사용하는 곳:** 팔로워 목록, 팔로잉 목록, 댓글
 
-```json
-// HTTP 4xx/5xx
-{
-  "code": "AUTH_INVALID_CREDENTIALS",
-  "message": "이메일 또는 비밀번호가 올바르지 않습니다.",
-  "details": {}
-}
-```
-
-프론트엔드에서 `getErrorMessage(error)` 유틸이 자동 추출.
-
----
-
-## 12. 트러블슈팅
-
-### CORS 오류
-
-```
-Access to XMLHttpRequest at 'http://localhost:8080/api' has been blocked by CORS policy
-```
-
-**해결:** 백엔드에서 CORS 설정:
 ```java
-// Spring Boot
-@CrossOrigin(origins = "http://localhost:3000")
-// 또는 전역 설정
-@Configuration
-public class WebConfig implements WebMvcConfigurer {
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**")
-            .allowedOrigins("http://localhost:3000")
-            .allowedMethods("GET", "POST", "PATCH", "DELETE", "PUT")
-            .allowCredentials(true);
+// 백엔드: Spring Page<T>를 프론트 형식으로 변환
+public record PageResponse<T>(
+    List<T> items,
+    long total,
+    int page,
+    int pageSize,
+    boolean hasNext,
+    boolean hasPrevious
+) {
+    public static <T> PageResponse<T> from(Page<T> springPage) {
+        return new PageResponse<>(
+            springPage.getContent(),
+            springPage.getTotalElements(),
+            springPage.getNumber(),
+            springPage.getSize(),
+            springPage.hasNext(),
+            springPage.hasPrevious()
+        );
     }
 }
 ```
 
-### 401 무한 루프
+### 현재 백엔드의 문제
 
-토큰 갱신 실패 시 로그아웃 처리가 되지 않으면 무한 루프 발생.
-
-**이미 해결됨:** `client.ts`에서 refresh 실패 시 `clearAuthToken()` + `window.location.href = '/login'` 처리.
-
-### hydrate 시점 이슈
-
-새로고침 시 Zustand 스토어가 빈 상태로 시작되어 401 발생.
-
-**이미 해결됨:** `AuthHydration.tsx`에서 `hydrate()` → localStorage 토큰 복원 → `useMe()` 자동 호출.
-
-### 타입 불일치
-
-백엔드 응답 필드명이 프론트엔드 타입과 다를 경우:
-
-**해결:** `services.ts`의 Response 인터페이스를 백엔드에 맞게 수정하거나, 변환 함수 추가:
-
-```typescript
-// 예: 백엔드가 snake_case, 프론트가 camelCase
-function convertPost(raw: any): PostWithAuthor {
-  return {
-    id: raw.id,
-    userId: raw.user_id,       // snake_case → camelCase
-    content: raw.content,
-    likeCount: raw.like_count,
-    // ...
-  };
-}
-```
-
-> **권장:** 백엔드에서 camelCase로 직렬화하면 변환 불필요.
-> Spring Boot: `spring.jackson.property-naming-strategy=LOWER_CAMEL_CASE`
+| 컨트롤러 | 현재 방식 | 프론트 기대 |
+|---------|---------|-----------|
+| `ProfileController` (followers) | Spring `Page<T>` 직접 반환 | `PageResponse<T>` |
+| `ProfileController` (posts) | Spring `Page<T>` 직접 반환 | `CursorResponse<T>` |
+| `PostController` (category) | `List<T>` 전체 반환 (페이지네이션 없음) | `CursorResponse<T>` |
+| `PopularityController` | `limit` + `offset` 수동 | 해당 없음 |
 
 ---
 
-## 요약: 최소 변경으로 연결하기
+## 8. CORS 수정
 
-```
-1. .env.local에 NEXT_PUBLIC_API_URL 설정
-2. AuthGuard.tsx에서 DEMO_MODE = false
-3. queries.ts의 각 훅에서 mock 로직 → services.ts API 호출로 교체
-4. mock import 제거
-5. 끝
+### 현재 문제
+
+```java
+// SecurityConfig.java 63번째 줄
+configuration.setAllowedOrigins(List.of("http://localhost:8080")); // ← 자기 자신
 ```
 
-인프라(Axios, 토큰 갱신, 타입, 엔드포인트, 서비스 함수)는 **이미 전부 구현되어 있습니다.**
+### 수정
+
+```java
+// ✅ 프론트엔드 주소로 변경
+configuration.setAllowedOrigins(List.of(
+    "http://localhost:3000"    // Next.js 개발 서버
+));
+
+// 또는 환경변수로 관리 (권장)
+@Value("${cors.allowed-origins:http://localhost:3000}")
+private String allowedOrigins;
+
+// ...
+configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
+```
+
+---
+
+## 9. 미구현 엔드포인트 목록
+
+프론트엔드 `endpoints.ts`에 정의되어 있지만 백엔드 dev 브랜치에 없는 엔드포인트들입니다.
+
+### 9-1. dev 브랜치에서 구현 필요
+
+| 메서드 | 경로 | 설명 | 우선순위 |
+|--------|------|------|---------|
+| POST | `/auth/signup` | 회원가입 (토큰 포함 응답) | 🔴 |
+| POST | `/auth/logout` | 로그아웃 | 🔴 |
+| GET | `/auth/me` | 내 정보 조회 | 🔴 |
+| GET | `/users/me` | 내 프로필 | 🔴 |
+| GET | `/users/nickname/{nickname}` | 닉네임으로 유저 조회 | 🔴 |
+| GET | `/feed/home` | 홈 피드 (커서 페이지네이션) | 🔴 |
+| GET | `/feed/following` | 팔로잉 피드 | 🟡 |
+| GET | `/categories` | 카테고리 목록 | 🔴 |
+| GET | `/categories/{id}` | 카테고리 상세 | 🟡 |
+| POST | `/comments` | 댓글 작성 | 🔴 |
+| GET | `/comments/post/{postId}` | 게시글 댓글 조회 | 🔴 |
+| PATCH | `/comments/{id}` | 댓글 수정 | 🟡 |
+| DELETE | `/comments/{id}` | 댓글 삭제 | 🟡 |
+| GET | `/users/settings` | 사용자 설정 조회 | 🟡 |
+| PATCH | `/users/settings` | 사용자 설정 수정 | 🟡 |
+
+### 9-2. 피처 브랜치 머지 후 수정 필요
+
+| 브랜치 | 기능 | 프론트 경로와 일치 여부 |
+|--------|------|---------------------|
+| `feat/postLike` | 좋아요 | 경로 확인 필요 (`/posts/{id}/likes` vs `/posts/{id}/like`) |
+| `feature/messaging` | DM | 경로 확인 필요 (`/messages/inbox` vs `/messages/received`) |
+| `feature/search-api` | 검색 | 경로 확인 필요 (`/search/posts` vs `/search`) |
+| `feat/noti` | 알림 | 경로 확인 필요 |
+
+### 9-3. 완전 미구현
+
+| 도메인 | 엔드포인트 수 | 우선순위 |
+|--------|-------------|---------|
+| 북마크 | 6개 | 🟡 |
+| 파일 업로드 | 3개 | 🟡 |
+| 프리미엄 | 3개 | ⚪ |
+| 팬 구독 (프론트 경로 기준) | 3개 | ⚪ |
+| 고객지원 | 3개 | ⚪ |
+| 관리자 | 12개 | ⚪ |
+
+---
+
+## 10. 작업 우선순위
+
+### Phase 1 — 바로 연결 가능하게 (필수)
+
+> 이것만 하면 로그인 → 피드 조회 → 게시글 작성 기본 플로우가 동작합니다.
+
+1. **CORS 수정** — `SecurityConfig.java` 한 줄 (`localhost:8080` → `localhost:3000`)
+2. **`ApiResponse<T>` 래퍼 추가** — 공통 클래스 1개 생성
+3. **`GlobalExceptionHandler` 수정** — 에러 응답 형식 변경
+4. **로그인 응답 DTO 수정** — `AuthResponse` (user + tokens 중첩 구조)
+5. **`/auth/signup` 엔드포인트 추가** — 회원가입 + 토큰 발급
+6. **`/auth/me` 엔드포인트 추가** — JWT에서 유저 정보 반환
+7. **PostController 인증 방식 변경** — `X-User-Id` → `@CurrentUser`
+
+### Phase 2 — 핵심 기능 연결
+
+8. **프로필 경로 변경** — `/profiles/*` → `/users/*`
+9. **`UserWithProfileResponse` DTO 생성** — 프론트 스펙에 맞는 유저+프로필 응답
+10. **`PostWithAuthorResponse` DTO 생성** — author, media, category 포함
+11. **페이지네이션 DTO 추가** — `CursorResponse<T>`, `PageResponse<T>`
+12. **피드 API 구현** — `GET /feed/home` (커서 기반)
+13. **카테고리 API 구현** — `GET /categories`
+14. **댓글 API 구현** — CRUD + 좋아요
+
+### Phase 3 — 피처 브랜치 머지 + 경로 통일
+
+15. `feat/postLike` 머지 → 경로를 프론트에 맞게 수정
+16. `feature/search-api` 머지 → 통합 검색 응답 형식 맞추기
+17. `feature/messaging` 머지 → 경로 수정
+18. `feat/noti` 머지 → 경로 수정
+
+### Phase 4 — 부가 기능
+
+19. 북마크 CRUD
+20. 파일 업로드
+21. 사용자 설정
+22. 차단/뮤트
+
+### Phase 5 — 관리자/프리미엄
+
+23. 관리자 대시보드 + 유저 관리
+24. 프리미엄 구독
+25. 고객지원
+
+---
+
+## 부록: 프론트엔드 참조 파일
+
+백엔드 수정 시 참고해야 할 프론트엔드 파일들입니다.
+
+| 파일 | 내용 | 참고 목적 |
+|------|------|---------|
+| `src/lib/api/client.ts` | Axios 설정, 응답 래퍼 타입, 토큰 갱신 로직 | 응답 형식, 인증 흐름 |
+| `src/lib/api/endpoints.ts` | 전체 API 경로 상수 | 엔드포인트 경로 |
+| `src/lib/api/services.ts` | API 호출 함수 + 요청/응답 DTO 정의 | DTO 필드 스펙 |
+| `src/hooks/queries.ts` | React Query 훅 (실제 호출 코드) | 호출 방식, 파라미터 |
+| `src/types/index.ts` | TypeScript 전체 타입 정의 | 엔티티 필드 스펙 |

@@ -6,6 +6,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { UserActionMenu } from '@/components/features/UserActionMenu';
 import { ShareModal } from '@/components/features/ShareModal';
 import { ReportModal } from '@/components/features/ReportModal';
+import { RepostModal } from '@/components/features/RepostModal';
 import { Button } from '@/components/ui';
 import { useUser } from '@/stores/auth';
 import type { PostWithAuthor } from '@/types';
@@ -14,6 +15,7 @@ interface PingCardProps {
   post: PostWithAuthor;
   onLike?: (postId: number) => void;
   onBookmark?: (postId: number) => void;
+  onRepost?: (postId: number) => void;
   onDelete?: (postId: number) => void;
   onEdit?: (postId: number) => void;
   showFullContent?: boolean;
@@ -23,6 +25,7 @@ export const PingCard: React.FC<PingCardProps> = ({
   post,
   onLike,
   onBookmark,
+  onRepost,
   onDelete,
   onEdit,
   showFullContent = false,
@@ -32,6 +35,7 @@ export const PingCard: React.FC<PingCardProps> = ({
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isRepostModalOpen, setIsRepostModalOpen] = useState(false);
   const [isQuestionOpen, setIsQuestionOpen] = useState(false);
   const [questionText, setQuestionText] = useState('');
   const [questionSent, setQuestionSent] = useState(false);
@@ -266,15 +270,17 @@ export const PingCard: React.FC<PingCardProps> = ({
                 <span className="text-xs">{formatCount(post.commentCount)}</span>
               </Link>
 
-              {/* Repost - navigate to compose with quote */}
-              <Link
-                href={`/compose?quote=${post.id}`}
-                onClick={(e) => e.stopPropagation()}
+              {/* Repost - opens RepostModal */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsRepostModalOpen(true);
+                }}
                 className={`flex items-center gap-1 p-2 rounded-full transition-colors ${post.isReposted ? 'text-green-600' : 'text-neutral-500 hover:text-green-600 hover:bg-green-50'}`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 <span className="text-xs">{formatCount(post.repostCount)}</span>
-              </Link>
+              </button>
 
               {/* Like */}
               <button
@@ -327,6 +333,12 @@ export const PingCard: React.FC<PingCardProps> = ({
         onClose={() => setIsReportModalOpen(false)}
         targetType="POST"
         targetId={post.id}
+      />
+      <RepostModal
+        isOpen={isRepostModalOpen}
+        onClose={() => setIsRepostModalOpen(false)}
+        post={post}
+        onQuoteRepost={(postId) => onRepost?.(postId)}
       />
     </>
   );

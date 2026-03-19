@@ -1,3 +1,12 @@
+/**
+ * 페이지: 오픈소스 라이선스
+ * 경로: /licenses
+ * 설명: DuckDuck에서 사용하는 오픈소스 라이브러리(Next.js, React, Tailwind CSS,
+ *       Zustand, TanStack Query, Axios) 목록과 MIT 라이선스 전문을 표시하는 화면.
+ *
+ * 사용하는 API: 없음
+ * Mock 상태: 없음 (정적 콘텐츠)
+ */
 'use client';
 import React from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

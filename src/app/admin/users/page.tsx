@@ -1,3 +1,13 @@
+/**
+ * 페이지: 사용자 관리 (관리자)
+ * 경로: /admin/users
+ * 설명: 전체 사용자를 검색하고, 계정 정지/해제 및 삭제를 수행하는 관리자 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockUsers 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

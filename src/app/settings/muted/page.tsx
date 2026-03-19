@@ -1,3 +1,13 @@
+/**
+ * 페이지: 뮤트 사용자
+ * 경로: /settings/muted
+ * 설명: 뮤트한 사용자 목록을 표시하고, 뮤트 해제 기능을 제공하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockUsers 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

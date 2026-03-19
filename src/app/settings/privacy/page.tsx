@@ -1,3 +1,13 @@
+/**
+ * 페이지: 개인정보 설정
+ * 경로: /settings/privacy
+ * 설명: 활동 상태 표시, 읽음 확인 등 개인정보 관련 설정을 토글로 관리하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockUserSettings 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

@@ -1,3 +1,13 @@
+/**
+ * 페이지: 카테고리 요청 관리 (관리자)
+ * 경로: /admin/category-requests
+ * 설명: 사용자가 신청한 새 카테고리(게시판) 요청을 승인/거절하는 관리자 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockBoardApplications 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

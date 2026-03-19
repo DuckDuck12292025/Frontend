@@ -1,3 +1,14 @@
+/**
+ * 페이지: 알림 설정
+ * 경로: /settings/notifications
+ * 설명: 푸시 알림 전체 활성화/비활성화 및 유형별(좋아요, 댓글, 팔로우,
+ *       리포스트, 구독, 마케팅) 알림 토글을 관리하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockUserSettings 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

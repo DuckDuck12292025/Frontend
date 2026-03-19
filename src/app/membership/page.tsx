@@ -1,3 +1,14 @@
+/**
+ * 페이지: 멤버십 관리
+ * 경로: /membership
+ * 설명: 크리에이터가 자신의 구독 티어를 생성/수정/활성화/비활성화하고,
+ *       구독자 수와 월 수익 통계를 확인하는 멤버십 관리 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockFanTiers, mockSubscriberCounts(로컬) 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

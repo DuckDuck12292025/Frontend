@@ -1,3 +1,21 @@
+/**
+ * 페이지: 게시글 상세
+ * 경로: /ping/[id]
+ * 설명: 개별 게시글의 전체 내용, 미디어, 인용글, 댓글 목록을 표시하는 상세 화면.
+ *       좋아요/북마크/공유/댓글 작성/대댓글/댓글 수정·삭제 기능을 제공한다.
+ *
+ * 사용하는 API:
+ *   - GET /posts/:id — 게시글 상세 조회
+ *   - GET /posts/:id/comments — 댓글 목록 조회
+ *   - POST /posts/:id/comments — 댓글 작성
+ *   - POST /posts/:id/like — 게시글 좋아요 토글
+ *   - POST /posts/:id/bookmark — 게시글 북마크 토글
+ *   - POST /comments/:id/like — 댓글 좋아요 토글
+ *   - PUT /comments/:id — 댓글 수정
+ *   - DELETE /comments/:id — 댓글 삭제
+ *
+ * Mock 상태: 실제 API 연동 가능
+ */
 'use client';
 
 import React, { useState } from 'react';

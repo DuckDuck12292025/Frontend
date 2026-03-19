@@ -1,3 +1,12 @@
+/**
+ * 페이지: 소개
+ * 경로: /about
+ * 설명: DuckDuck 서비스 소개, 주요 기능 하이라이트, 법적 고지 링크(이용약관,
+ *       개인정보처리방침, 커뮤니티 가이드라인, 오픈소스 라이선스)를 제공하는 화면.
+ *
+ * 사용하는 API: 없음
+ * Mock 상태: 없음 (정적 콘텐츠)
+ */
 'use client';
 import React from 'react';
 import Link from 'next/link';

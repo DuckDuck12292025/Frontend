@@ -1,3 +1,14 @@
+/**
+ * 페이지: 쪽지 / 받은 질문
+ * 경로: /messages
+ * 설명: 받은 쪽지, 보낸 쪽지, 익명 질문(Q&A)을 탭으로 구분하여 관리하는 메시지 화면.
+ *       쪽지 작성/답장/삭제, 질문 선택 후 묶어서 답변하기 기능을 제공한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockUsers, mockPosts, mockAnonQuestions, mockNotes(로컬) 사용 중
+ */
 'use client';
 
 import React, { useState, useMemo } from 'react';

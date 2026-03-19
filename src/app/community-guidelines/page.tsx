@@ -1,3 +1,12 @@
+/**
+ * 페이지: 커뮤니티 가이드라인
+ * 경로: /community-guidelines
+ * 설명: 존중, 안전, 진실성, 콘텐츠 기준, 위반 시 조치 등
+ *       커뮤니티 가이드라인 전문을 표시하는 화면.
+ *
+ * 사용하는 API: 없음
+ * Mock 상태: 없음 (정적 콘텐츠)
+ */
 'use client';
 import React from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

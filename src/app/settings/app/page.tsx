@@ -1,3 +1,14 @@
+/**
+ * 페이지: 앱 설정
+ * 경로: /settings/app
+ * 설명: 테마(라이트/다크/시스템) 선택, 언어 설정, 캐시 삭제 등
+ *       앱 전반 설정을 관리하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: 없음 (로컬 설정만 관리)
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

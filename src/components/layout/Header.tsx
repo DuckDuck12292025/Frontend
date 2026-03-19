@@ -1,3 +1,10 @@
+/**
+ * 컴포넌트: Header
+ * 설명: 상단 고정 헤더. 뒤로가기 버튼, 페이지 제목 또는 로고, 검색/알림 아이콘,
+ *       커스텀 우측 액션 영역을 제공한다. 알림 배지(unreadCount)를 지원한다.
+ * 사용하는 API: 없음
+ * Mock 상태: 없음
+ */
 'use client';
 
 import React from 'react';

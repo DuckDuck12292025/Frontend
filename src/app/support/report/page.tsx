@@ -1,3 +1,14 @@
+/**
+ * 페이지: 문의하기
+ * 경로: /support/report
+ * 설명: 버그 신고, 기능 제안, 콘텐츠 신고, 계정 문제 등의 유형을 선택하고
+ *       제목/내용을 입력하여 문의를 제출하는 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: 문의 제출은 로컬 state 전환만 수행 (실제 API 미연동)
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

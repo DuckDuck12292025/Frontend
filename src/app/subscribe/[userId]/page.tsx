@@ -1,3 +1,14 @@
+/**
+ * 페이지: 크리에이터 구독
+ * 경로: /subscribe/[userId]
+ * 설명: 특정 크리에이터의 구독 티어를 선택하고 구독/변경/해지할 수 있는 화면.
+ *       크리에이터 프로필, 팔로워 수, 티어별 혜택 및 가격을 표시한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockUsers, mockFanTiers 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { useParams } from 'next/navigation';

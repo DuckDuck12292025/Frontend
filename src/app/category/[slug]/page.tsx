@@ -1,3 +1,14 @@
+/**
+ * 페이지: 카테고리 상세
+ * 경로: /category/[slug]
+ * 설명: 특정 카테고리의 게시글을 최신순/인기순으로 보여주는 화면.
+ *       공지사항 접기/펴기, 카테고리 구독, 글 작성 바로가기를 제공한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 필터링으로 처리)
+ *
+ * Mock 상태: mockCategories, mockPosts 사용 중
+ */
 'use client';
 
 import React, { useState, useMemo } from 'react';

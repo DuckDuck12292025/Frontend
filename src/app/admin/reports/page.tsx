@@ -1,3 +1,14 @@
+/**
+ * 페이지: 신고 관리 (관리자)
+ * 경로: /admin/reports
+ * 설명: 사용자 신고 목록을 조회하고, 처리/기각 상태를 관리하는 관리자 화면.
+ *       신고 유형(스팸, 괴롭힘, 부적절), 대상, 날짜를 표시한다.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: mockReports 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';

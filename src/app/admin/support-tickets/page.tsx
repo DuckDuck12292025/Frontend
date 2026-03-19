@@ -1,3 +1,14 @@
+/**
+ * 페이지: 지원 티켓 관리 (관리자)
+ * 경로: /admin/support-tickets
+ * 설명: 사용자 지원 티켓(로그인 문제, 게시글 문제, 결제 오류 등)의 상태를
+ *       접수 → 처리 중 → 완료로 관리하는 관리자 화면.
+ *
+ * 사용하는 API:
+ *   - 없음 (현재 로컬 state로 처리)
+ *
+ * Mock 상태: initialTickets(로컬) 사용 중
+ */
 'use client';
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
