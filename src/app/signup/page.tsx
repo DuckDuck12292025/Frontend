@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { Button, Input } from '@/components/ui';
 import { useSignup } from '@/hooks/queries';
+import { getErrorMessage } from '@/lib/api/client';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -50,7 +51,7 @@ export default function SignupPage() {
           router.push('/');
         },
         onError: (err) => {
-          setError(err instanceof Error ? err.message : '회원가입에 실패했습니다.');
+          setError(getErrorMessage(err));
         },
       }
     );
