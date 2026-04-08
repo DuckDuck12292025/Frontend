@@ -17,6 +17,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { Button, Input } from '@/components/ui';
 import { useLogin } from '@/hooks/queries';
+import { getErrorMessage } from '@/lib/api/client';
 
 const oauthProviders = [
   { name: '카카오', bg: 'bg-[#FEE500]', text: 'text-[#191919]', hoverBg: 'hover:bg-[#F5DC00]' },
@@ -45,7 +46,7 @@ function LoginForm() {
           router.push(returnUrl);
         },
         onError: (err) => {
-          setError(err instanceof Error ? err.message : '로그인에 실패했습니다.');
+          setError(getErrorMessage(err));
         },
       }
     );
